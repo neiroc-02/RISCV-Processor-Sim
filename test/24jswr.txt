@@ -1,0 +1,36 @@
+# jswr-type:
+    0:        09a06293        ori x5 x0 154
+    4:        00106313        ori x6 x0 1
+    8:        00730e33        add x28 x6 x7
+    c:        01ce0eb3        add x29 x28 x28
+    10:        000012b7        lui x5 0x1
+    14:        00634333        xor x6 x6 x6
+    18:        4032d393        srai x7 x5 3
+    1c:        40cede93        srai x29 x29 12
+    20:        0003e513        ori x10 x7 0
+    24:        006e85b3        add x11 x29 x6
+    28:        00a02023        sw x10 0 x0
+    2c:        0012e293        ori x5 x5 1
+    30:        00002223        sw x0 4 x0
+    34:        00558223        sb x5 4 x11
+    38:        003e2503        lw x10 3 x28
+    3c:        00000583        lb x11 0 x0
+    40:        00b50463        beq x10 x11 8 
+    44:        0ff5e593        ori x11 x11 255
+nskip:
+    48:        00a5c5b3        xor x11 x11 x10
+    4c:        00b58663        beq x11 x11 12 
+    50:        005505b3        add x11 x10 x5
+    54:        00b545b3        xor x11 x10 x11
+skip:
+    58:        00c0056f        jal x10 12
+    5c:        005505b3        add x11 x10 x5
+    60:        005505b3        add x11 x10 x5
+    64:        005505b3        add x11 x10 x5
+    68:        007545b3        xor x11 x10 x7
+#end
+
+# a0 = 92
+# a1 = 604
+
+

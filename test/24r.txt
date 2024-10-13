@@ -1,0 +1,17 @@
+# r-type:
+    0:        09a06293        ori x5 x0 154
+    4:        00106313        ori x6 x0 1
+    8:        00730e33        add x28 x6 x7
+    c:        01ce0eb3        add x29 x28 x28
+    10:        000012b7        lui x5 0x1
+    14:        00634333        xor x6 x6 x6
+    18:        4032d393        srai x7 x5 3
+    1c:        40cede93        srai x29 x29 12
+    20:        0003e513        ori x10 x7 0
+    24:        006e85b3        add x11 x29 x6
+#end
+
+# a0 = 512
+# a1 = 0
+
+
