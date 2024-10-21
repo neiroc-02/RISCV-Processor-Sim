@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 	{
 		// FETCH STAGE: CONVERT INS MEM TO HEX
 		int instruction = fetch(instMem, myCPU.readPC()); 
-		cout << "Inst: " <<  setw(8) << setfill('0') << hex << instruction << endl;
+		cout << "Inst: 0x" <<  setw(8) << setfill('0') << hex << instruction << endl;
 		if (instruction == 0) break;
 
 		// DECODE STAGE:
