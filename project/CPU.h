@@ -5,13 +5,13 @@
 #include <string>
 using namespace std;
 
-
+/*
 class instruction { // optional
 public:
  	bitset<32> instr;//instruction
 	instruction(bitset<32> fetch); // constructor
 };
-
+*/
 class CPU {
 private:
 	int dmemory[4096]; //data memory byte addressable in little endian fashion;
