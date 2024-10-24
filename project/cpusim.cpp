@@ -15,12 +15,12 @@ template <size_t N>
 int sign_extension(const bitset<N> &immediate)
 {
 	const int LENGTH = immediate.size();
-	unsigned long value = temp.to_ulong();
+	unsigned long value = immediate.to_ulong();
 	if (immediate[LENGTH - 1] == 1)
 	{
-		value |= (~0UL << LENGTH); //shift all 1's by LENGTH to start the array with all 1's
+		value |= (~0UL << LENGTH); // shift all 1's by LENGTH to start the array with all 1's
 	}
-	return static_cast<int>(value)
+	return static_cast<int>(value);
 }
 
 /*FETCH STAGE: Fetch an ins from instMem given the current PC*/
@@ -30,6 +30,7 @@ bitset<32> fetch(int *instMem, int PC) // jjust wanted to be cool and use a poin
 }
 
 /* DECODE STAGE: Identify R, I, S, B, U, J type instructions and return the control signals*/
+/*
 bitset<8> alu_signals(const bitset<7> &opcode)
 {
 	// The bitset returned defines these control signals:
@@ -45,24 +46,30 @@ bitset<8> alu_signals(const bitset<7> &opcode)
 	//  - bitset[8] = JUMP
 
 	// TODO: Figure out what ALUOP and J/U type control signals should be
-	unordered_map<bitset<7>, bitset<8>> ctrl_signals = {
-		{bitset<7>("0110011"), bitset<8>("100000xx0")}, // R-type instruction
-		{bitset<7>("0010011"), bitset<8>("110000xx0")}, // I-type instruction
-		{bitset<7>("0000011"), bitset<8>("110101xx0")}, // I-type instruction (Load)
-		{bitset<7>("0100011"), bitset<8>("010010xx0")}, // S-type instruction
-		{bitset<7>("1100011"), bitset<8>("001000xx0")}, // B-type instruction
-		{bitset<7>("1101111"), bitset<8>("000000xx1")}, // J-type instruction (JAL)
-		{bitset<7>("0110111"), bitset<8>()},		    // U-type instruction
+	unordered_map<bitset<7>, bitset<9>> ctrl_signals = {
+		{bitset<7>("0110011"), bitset<9>("100000xx0")}, // R-type instruction
+		{bitset<7>("0010011"), bitset<9>("110000xx0")}, // I-type instruction
+		{bitset<7>("0000011"), bitset<9>("110101xx0")}, // I-type instruction (Load)
+		{bitset<7>("0100011"), bitset<9>("010010xx0")}, // S-type instruction
+		{bitset<7>("1100011"), bitset<9>("001000xx0")}, // B-type instruction
+		{bitset<7>("1101111"), bitset<9>("000000xx1")}, // J-type instruction (JAL)
+		{bitset<7>("0110111"), bitset<9>()},		    // U-type instruction
 	};
 	return ctrl_signals[opcode];
 }
-
+*/
 /* DECODE STAGE: Determine if/what immediate needs to be generated*/
-int imm_gen(const bitset<7> &opcode, const bitset<32> &instruction)
+//NOTE: Correctly idenifies instructions now
+int imm_gen(const bitset<32> &instruction)
 {
+	bitset<7> opcode;
+	for (int i = 0; i < 7; i++){
+		opcode[i] = instruction[i];
+	}
 	// I-type instruction: Needs Ins[31:20]
-	if (opcode == bitset<7>("0010011") || opcode == bitset<7>("0000011"))
-	{
+	//FIXME: Some incorrect constants SRAI [needs to set 5:11 to 0]
+	if (opcode.to_ulong() == bitset<7>(0b0010011).to_ulong() || opcode.to_ulong() == bitset<7>(0b0000011).to_ulong()){
+		cout << "I-type instruction\n";
 		bitset<12> temp;
 		for (int i = 0; i < 12; i++)
 		{
@@ -71,8 +78,9 @@ int imm_gen(const bitset<7> &opcode, const bitset<32> &instruction)
 		return sign_extension(temp);
 	}
 	// S-type instruction: Needs Ins[31:25] and Ins[11:7]
-	else if (opcode == bitset<7>("0100011"))
+	else if (opcode.to_ulong() == bitset<7>("0100011").to_ulong())
 	{
+		cout << "S-type instruction\n";
 		bitset<12> temp;
 		for (int i = 0; i < 4; i++)
 		{
@@ -84,37 +92,79 @@ int imm_gen(const bitset<7> &opcode, const bitset<32> &instruction)
 		}
 		return sign_extension(temp);
 	}
-	//TODO: B-type instruction: Needs Ins[3]
-	else if (opcode == bitset<7>("1100011"))
+	// B-type instruction
+	else if (opcode.to_ulong() == bitset<7>("1100011").to_ulong())
 	{
+		cout << "B-type instruction\n";
+		bitset<13> temp;
+		temp[0] = 0;				// Bit 0 will always be 0
+		temp[12] = instruction[31]; // Bit 12 will always come from ins[31]
+		temp[11] = instruction[7];	// Bit 11 will always come from ins[7]
+		// Bits 5:10 are located in 25:30 of the instruction
+		for (int i = 5; i < 11; i++)
+		{
+			temp[i] = instruction[25 + i];
+		}
+		// Bits 1:4 are located in 8:11
+		for (int i = 1; i < 5; i++)
+		{
+			temp[i] = instruction[8 + i];
+		}
+		return sign_extension(temp);
 	}
-	//TODO: J-type instruction
-	else if (opcode == bitset<7>("1101111"))
+	// J-type instruction
+	else if (opcode.to_ulong() == bitset<7>("1101111").to_ulong())
 	{
+		cout << "J-type instruction\n";
+		bitset<21> temp;
+		temp[20] = instruction[31]; // MSB will always be from ins[31]
+		temp[0] = 0;				// LSB wil always be 0
+		for (int i = 1; i < 11; i++)
+		{
+			temp[i] = instruction[20 + i];
+		}
+		temp[12] = instruction[19];
+		for (int i = 12; i < 20; i++)
+		{
+			temp[i] = instruction[i];
+		}
+		return sign_extension(temp);
 	}
 	// U-type instruction: Needs ins[31:12]
-	else if (opcode == bitset<7>("0110111"))
+	else if (opcode.to_ulong() == bitset<7>("0110111").to_ulong())
 	{
-		bitset<20> temp;
-		for (int i = 0; i < 20; i++)
+		cout << "U-type instruction\n";
+		bitset<32> temp;
+		for (int i = 12; i < 32; i++)
 		{
-			temp[i] = instruction[11 + i];
+			temp[i] = instruction[i];
 		}
 		return sign_extension(temp);
 	}
 	// R-type instruction: no immediate
+	else if (opcode.to_ulong() == bitset<7>("0110011").to_ulong())
+	{
+		cout << "R-type instruction\n";
+		return 0;
+	}	
 	else
 	{
-		return 0;
+		cout << "I should not be here!" << endl;
+		return -1;
 	}
 }
 
+/*DECODE STAGE: ALU Control*/
+/*
+int alu_ctrl()
+{
+
+}
+*/
+
 int main(int argc, char *argv[])
 {
-	/* This is the front end of your project.
-	You need to first read the instructions that are stored in a file and load them into an instruction memory.
-	*/
-
+	/* This is the front end of your project. You need to first read the instructions that are stored in a file and load them into an instruction memory.*/
 	int instMem[4096] = {0}; // Changed to int array of bytes
 
 	if (argc < 2)
@@ -159,7 +209,6 @@ int main(int argc, char *argv[])
 	int register_file[32] = {0};
 	CPU myCPU; // call the approriate constructor here to initialize the processor...
 
-	// make sure to create a variable for PC and resets it to zero (e.g., unsigned int PC = 0);
 	/*
 	Instructions to Implement: ADD, LUI, ORI, XOR, SRAI, LB, LW, SB, SW, BEQ, JAL
 	*/
@@ -186,7 +235,7 @@ int main(int argc, char *argv[])
 		// NOTE: HOW DO I ADD CONTROL SIGNALS WITH NO EXTRA BITS, look at funct 3 maybe for sw v. sb distinction
 		// Getting the opcode
 		bitset<7> opcode; // Getting the opcode for the controller...
-		for (int i = 0; i < 6; i++)
+		for (int i = 0; i < 8; i++)
 		{
 			opcode[i] = instruction[i];
 		}
@@ -200,21 +249,21 @@ int main(int argc, char *argv[])
 			rs2_idx[i] = instruction[20 + i];
 			rd_idx[i] = instruction[7 + i];
 		}
-		bitset<4> alu_ctrl;
-		alu_ctrl[3] = instruction[30];
+		bitset<4> alu_ctrl_in;
+		alu_ctrl_in[3] = instruction[30];
 		for (int i = 0; i < 3; i++)
 		{
-			alu_ctrl[i] = instruction[12 + i];
+			alu_ctrl_in[i] = instruction[12 + i];
 		}
 
 		// Above looks good!
-		/*
-		cout << "Bitsets: " << endl;
-		cout << opcode << endl;
-		cout << rs1 << endl;
-		cout << rs2 << endl;
-		cout << rd << endl;
-		*/
+
+		cout << "Opcode: " << opcode << endl;
+		//cout << rs1_idx << endl;
+		//cout << rs2_idx << endl;
+		//cout << rd_idx << endl;
+		// cout << "Produced Signals: " << --- << endl;
+		cout << "Produced Imm: " << dec << imm_gen(instruction) << endl;
 
 		// EXECUTE STAGE:
 		/*
@@ -229,8 +278,8 @@ int main(int argc, char *argv[])
 		// UPDATE PC:
 		/*
 			Increment PC correctly: two cases...
-			- PC + 4 for all ins except Branch/Jump
-			- PC + offset for Successful Branch/Jump ins
+			- PC + 4 for all ins except Branch/Jump (PC++ in this program)
+			- PC + offset for Successful Branch/Jump ins (PC + offset/4 in this program)
 		*/
 
 		// ...
@@ -238,8 +287,8 @@ int main(int argc, char *argv[])
 		if (myCPU.readPC() > maxPC)
 			break;
 	}
-	int a0 = register_file[10]; //a0 is x10
-	int a1 = register_file[11]; //a1 is x11
+	int a0 = register_file[10]; // a0 is x10
+	int a1 = register_file[11]; // a1 is x11
 	// print the results (you should replace a0 and a1 with your own variables that point to a0 and a1)
 	cout << "(" << a0 << "," << a1 << ")" << endl;
 	return 0;
