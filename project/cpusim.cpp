@@ -30,8 +30,7 @@ bitset<32> fetch(int *instMem, int PC) // jjust wanted to be cool and use a poin
 }
 
 /* DECODE STAGE: Identify R, I, S, B, U, J type instructions and return the control signals*/
-/*
-bitset<8> alu_signals(const bitset<7> &opcode)
+bitset<9> alu_signals(const bitset<7> &opcode)
 {
 	// The bitset returned defines these control signals:
 	//	- bitset[0] = REGWRITE
@@ -40,7 +39,6 @@ bitset<8> alu_signals(const bitset<7> &opcode)
 	//	- bitset[3] = MEMREAD
 	//	- bitset[4] = MEMWRITE
 	//	- bitset[5] = MEMTOREG
-	//    Maybe need 3 bits?
 	//	- bitset[6] = ALUOP //00 -> add, 01 -> sub, 10 -> check funct3 11 -> NoOP
 	//	- bitset[7] = ALUOP
 	//  - bitset[8] = JUMP
@@ -57,7 +55,6 @@ bitset<8> alu_signals(const bitset<7> &opcode)
 	};
 	return ctrl_signals[opcode];
 }
-*/
 /* DECODE STAGE: Determine if/what immediate needs to be generated*/
 //NOTE: Correctly idenifies instructions now
 int imm_gen(const bitset<32> &instruction)
@@ -67,13 +64,21 @@ int imm_gen(const bitset<32> &instruction)
 		opcode[i] = instruction[i];
 	}
 	// I-type instruction: Needs Ins[31:20]
-	//FIXME: Some incorrect constants SRAI [needs to set 5:11 to 0]
 	if (opcode.to_ulong() == bitset<7>(0b0010011).to_ulong() || opcode.to_ulong() == bitset<7>(0b0000011).to_ulong()){
 		cout << "I-type instruction\n";
 		bitset<12> temp;
 		for (int i = 0; i < 12; i++)
 		{
 			temp[i] = instruction[20 + i];
+		}
+		bitset<3> funct3; //Added check for SRAI
+		for (int i = 0; i < 3; i++){
+			funct3[i] = instruction[12 + i];
+		}
+		if (funct3.to_ulong() == 5){
+			for (int i = 5; i < 12; i++){
+				temp[i] = 0;
+			}
 		}
 		return sign_extension(temp);
 	}
