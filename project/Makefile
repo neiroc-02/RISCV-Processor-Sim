@@ -1,7 +1,7 @@
 CC=g++
 DFLAGS=-g
 
-default: clean build
+default: build
 
 build: 
 	${CC} *.cpp -o cpusim

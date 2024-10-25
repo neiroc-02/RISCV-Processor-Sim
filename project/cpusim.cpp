@@ -23,7 +23,7 @@ int sign_extension(const bitset<N> &immediate)
 	return static_cast<int>(value);
 }
 
-/*FETCH STAGE: Fetch an ins from instMem given the current PC*/
+/* FETCH STAGE: Fetch an ins from instMem given the current PC*/
 bitset<32> fetch(int *instMem, int PC) // jjust wanted to be cool and use a pointer
 {
 	return bitset<32>(instMem[PC]);
@@ -39,38 +39,38 @@ bitset<9> alu_signals(const bitset<7> &opcode)
 	//	- bitset[3] = MEMREAD
 	//	- bitset[4] = MEMWRITE
 	//	- bitset[5] = MEMTOREG
-	//	- bitset[6] = ALUOP //00 -> add, 01 -> sub, 10 -> check funct3 11 -> NoOP
+	//	- bitset[6] = ALUOP //00 -> add, 01 -> sub, 10 -> funct3, 11 -> NoOP??
 	//	- bitset[7] = ALUOP
 	//  - bitset[8] = JUMP
-
-	// TODO: Figure out what ALUOP and J/U type control signals should be
 	unordered_map<bitset<7>, bitset<9>> ctrl_signals = {
-		{bitset<7>("0110011"), bitset<9>("100000xx0")}, // R-type instruction
-		{bitset<7>("0010011"), bitset<9>("110000xx0")}, // I-type instruction
-		{bitset<7>("0000011"), bitset<9>("110101xx0")}, // I-type instruction (Load)
-		{bitset<7>("0100011"), bitset<9>("010010xx0")}, // S-type instruction
-		{bitset<7>("1100011"), bitset<9>("001000xx0")}, // B-type instruction
-		{bitset<7>("1101111"), bitset<9>("000000xx1")}, // J-type instruction (JAL)
-		{bitset<7>("0110111"), bitset<9>()},		    // U-type instruction
+		{bitset<7>("0110011"), bitset<9>("100000100")}, // R-type instruction; varies, check funct3
+		{bitset<7>("0010011"), bitset<9>("110000100")}, // I-type instruction; varies, check funct3
+		{bitset<7>("0000011"), bitset<9>("110101000")}, // I-type instruction; (Load) ADD
+		{bitset<7>("0100011"), bitset<9>("010010000")}, // S-type instruction (Store) ADD
+		{bitset<7>("1100011"), bitset<9>("001000010")}, // B-type instruction (BEQ) SUB for equality
+		{bitset<7>("1101111"), bitset<9>("000000111")}, // J-type instruction (JAL) NOOP
+		{bitset<7>("0110111"), bitset<9>("110000110")}, // U-type instruction (LUI) NOOP
 	};
 	return ctrl_signals[opcode];
 }
 /* DECODE STAGE: Determine if/what immediate needs to be generated*/
-//NOTE: Correctly idenifies instructions now
 int imm_gen(const bitset<32> &instruction)
 {
 	bitset<7> opcode;
-	for (int i = 0; i < 7; i++){
+	for (int i = 0; i < 7; i++)
+	{
 		opcode[i] = instruction[i];
 	}
 	// I-type instruction: Needs Ins[31:20]
-	if (opcode.to_ulong() == bitset<7>(0b0010011).to_ulong() || opcode.to_ulong() == bitset<7>(0b0000011).to_ulong()){
-		cout << "I-type instruction\n";
+	if (opcode.to_ulong() == bitset<7>(0b0010011).to_ulong() || opcode.to_ulong() == bitset<7>(0b0000011).to_ulong())
+	{
 		bitset<12> temp;
 		for (int i = 0; i < 12; i++)
 		{
 			temp[i] = instruction[20 + i];
 		}
+		// FIXME: SRAI Check, not sure if I should return 3 or the one with the imm[11:5]=0x20
+		/*
 		bitset<3> funct3; //Added check for SRAI
 		for (int i = 0; i < 3; i++){
 			funct3[i] = instruction[12 + i];
@@ -79,13 +79,14 @@ int imm_gen(const bitset<32> &instruction)
 			for (int i = 5; i < 12; i++){
 				temp[i] = 0;
 			}
+			//temp[10] = 1;
 		}
+		*/
 		return sign_extension(temp);
 	}
 	// S-type instruction: Needs Ins[31:25] and Ins[11:7]
 	else if (opcode.to_ulong() == bitset<7>("0100011").to_ulong())
 	{
-		cout << "S-type instruction\n";
 		bitset<12> temp;
 		for (int i = 0; i < 4; i++)
 		{
@@ -100,7 +101,6 @@ int imm_gen(const bitset<32> &instruction)
 	// B-type instruction
 	else if (opcode.to_ulong() == bitset<7>("1100011").to_ulong())
 	{
-		cout << "B-type instruction\n";
 		bitset<13> temp;
 		temp[0] = 0;				// Bit 0 will always be 0
 		temp[12] = instruction[31]; // Bit 12 will always come from ins[31]
@@ -120,7 +120,6 @@ int imm_gen(const bitset<32> &instruction)
 	// J-type instruction
 	else if (opcode.to_ulong() == bitset<7>("1101111").to_ulong())
 	{
-		cout << "J-type instruction\n";
 		bitset<21> temp;
 		temp[20] = instruction[31]; // MSB will always be from ins[31]
 		temp[0] = 0;				// LSB wil always be 0
@@ -138,7 +137,6 @@ int imm_gen(const bitset<32> &instruction)
 	// U-type instruction: Needs ins[31:12]
 	else if (opcode.to_ulong() == bitset<7>("0110111").to_ulong())
 	{
-		cout << "U-type instruction\n";
 		bitset<32> temp;
 		for (int i = 12; i < 32; i++)
 		{
@@ -149,9 +147,8 @@ int imm_gen(const bitset<32> &instruction)
 	// R-type instruction: no immediate
 	else if (opcode.to_ulong() == bitset<7>("0110011").to_ulong())
 	{
-		cout << "R-type instruction\n";
 		return 0;
-	}	
+	}
 	else
 	{
 		cout << "I should not be here!" << endl;
@@ -161,7 +158,7 @@ int imm_gen(const bitset<32> &instruction)
 
 /*DECODE STAGE: ALU Control*/
 /*
-int alu_ctrl()
+int alu_ctrl(const bitset<2> &alu_op, bitset<4> funct3)
 {
 
 }
@@ -225,7 +222,7 @@ int main(int argc, char *argv[])
 		bitset<32> instruction = fetch(instMem, myCPU.readPC());
 		if (instruction.none())
 			break;
-		cout << "Inst: 0x" << setw(8) << setfill('0') << hex << instruction.to_ulong() << endl;
+		cout << "Inst: " << setw(8) << setfill('0') << hex << instruction.to_ulong() << endl;
 
 		// DECODE STAGE:
 		/*
@@ -240,7 +237,7 @@ int main(int argc, char *argv[])
 		// NOTE: HOW DO I ADD CONTROL SIGNALS WITH NO EXTRA BITS, look at funct 3 maybe for sw v. sb distinction
 		// Getting the opcode
 		bitset<7> opcode; // Getting the opcode for the controller...
-		for (int i = 0; i < 8; i++)
+		for (int i = 0; i < 7; i++)
 		{
 			opcode[i] = instruction[i];
 		}
@@ -260,15 +257,16 @@ int main(int argc, char *argv[])
 		{
 			alu_ctrl_in[i] = instruction[12 + i];
 		}
+		int immediate = imm_gen(instruction);
+		bitset<9> control = alu_signals(opcode);
 
 		// Above looks good!
-
-		cout << "Opcode: " << opcode << endl;
-		//cout << rs1_idx << endl;
-		//cout << rs2_idx << endl;
-		//cout << rd_idx << endl;
-		// cout << "Produced Signals: " << --- << endl;
-		cout << "Produced Imm: " << dec << imm_gen(instruction) << endl;
+		//cout << "Opcode: " << opcode << endl;
+		// cout << rs1_idx << endl;
+		// cout << rs2_idx << endl;
+		// cout << rd_idx << endl;
+		//cout << "Produced Signals: " << alu_signals(opcode) << endl;
+		// cout << "Produced Imm: " << dec << imm_gen(instruction) << endl;
 
 		// EXECUTE STAGE:
 		/*
