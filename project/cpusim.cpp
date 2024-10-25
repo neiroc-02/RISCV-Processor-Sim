@@ -30,7 +30,7 @@ bitset<32> fetch(int *instMem, int PC) // jjust wanted to be cool and use a poin
 }
 
 /* DECODE STAGE: Identify R, I, S, B, U, J type instructions and return the control signals*/
-bitset<9> alu_signals(const bitset<7> &opcode)
+bitset<9> controller(const bitset<7> &opcode)
 {
 	// The bitset returned defines these control signals:
 	//	- bitset[0] = REGWRITE
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
 			alu_ctrl_in[i] = instruction[12 + i];
 		}
 		int immediate = imm_gen(instruction);
-		bitset<9> control = alu_signals(opcode);
+		bitset<9> control = controller(opcode);
 
 		// Above looks good!
 		//cout << "Opcode: " << opcode << endl;
