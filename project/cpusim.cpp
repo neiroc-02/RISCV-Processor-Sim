@@ -10,7 +10,7 @@
 #include <iomanip>		 // for hex representation
 using namespace std;
 
-// Take in a bitset of any size and sign extend
+/* HELPER FUNCTION FOR SIGN EXTENSION */
 template <size_t N>
 int sign_extension(const bitset<N> &immediate)
 {
@@ -22,26 +22,25 @@ int sign_extension(const bitset<N> &immediate)
 	}
 	return static_cast<int>(value);
 }
-
 /* FETCH STAGE: Fetch an ins from instMem given the current PC*/
 bitset<32> fetch(int *instMem, int PC) // jjust wanted to be cool and use a pointer
 {
 	return bitset<32>(instMem[PC]);
 }
-
 /* DECODE STAGE: Identify R, I, S, B, U, J type instructions and return the control signals*/
 bitset<9> controller(const bitset<7> &opcode)
 {
-	// The bitset returned defines these control signals:
-	//	- bitset[0] = REGWRITE
-	//	- bitset[1] = ALUSRC
-	//	- bitset[2] = BRANCH
-	//	- bitset[3] = MEMREAD
-	//	- bitset[4] = MEMWRITE
-	//	- bitset[5] = MEMTOREG
-	//	- bitset[6] = ALUOP //00 -> add, 01 -> sub, 10 -> funct3, 11 -> NoOP??
-	//	- bitset[7] = ALUOP
-	//  - bitset[8] = JUMP
+	/*
+	bitset[8] = REGWRITE
+	bitset[7] = ALUSRC
+	bitset[6] = BRANCH
+	bitset[5] = MEMREAD
+	bitset[4] = MEMWRITE
+	bitset[3] = MEMTOREG
+	bitset[2] = ALUOP[0] //00 -> add, 01 -> sub, 10 -> funct3, 11 -> NoOP??
+	bitset[1] = ALUOP[1]
+	bitset[0] = JUMP
+	*/
 	unordered_map<bitset<7>, bitset<9>> ctrl_signals = {
 		{bitset<7>("0110011"), bitset<9>("100000100")}, // R-type instruction; varies, check funct3
 		{bitset<7>("0010011"), bitset<9>("110000100")}, // I-type instruction; varies, check funct3
@@ -155,14 +154,49 @@ int imm_gen(const bitset<32> &instruction)
 		return -1;
 	}
 }
-
-/*DECODE STAGE: ALU Control*/
-/*
-int alu_ctrl(const bitset<2> &alu_op, bitset<4> funct3)
+/* DECODE STAGE: ALU Control */
+enum Operation { ADD, SUB, XOR, OR, RSR, NO_OP };
+Operation alu_ctrl(const bitset<2> &alu_op, const bitset<4> &funct3_7)
 {
+	if (alu_op == bitset<2>("00")){
+		return ADD;
+	}
+	else if (alu_op == bitset<2>("01")){
+		return SUB;
+	}
+	else if (alu_op == bitset<2>("11")){
+		return NO_OP;
+	}
+	else if (alu_op == bitset<2>("10")){
+		cout << "Must check funct3" << endl;
+		bitset<3> funct3;
+		for (int i = 0; i < 3; i++){
+			funct3[i] = funct3_7[i];
+		}
+		cout << funct3 << endl;
+		if (funct3 == bitset<3>("000")){
+			return ADD;
+		}
+		else if (funct3 == bitset<3>("100")){
+			return XOR;
+		}
+		else if (funct3 == bitset<3>("110")){
+			return OR;
+		}
+		else {
+			cout << "Bad funct 3: " << funct3 << endl;
+			return NO_OP;
+		}
+	}
+	else {
+		cout << "I should not be here!" << endl;
+		return NO_OP;
+	}
+}
+/* EXECUTE STAGE: ALU */
+int alu(Operation op, int input_1, int input_2){
 
 }
-*/
 
 int main(int argc, char *argv[])
 {
@@ -234,44 +268,69 @@ int main(int argc, char *argv[])
 			- INS[31:0] -> ImmGen: ???, probably needs its own function to convert
 			- INS[30, 14:12] -> ALU Control: convert this to an operation (add, sub, shift, etc.)
 		*/
-		// NOTE: HOW DO I ADD CONTROL SIGNALS WITH NO EXTRA BITS, look at funct 3 maybe for sw v. sb distinction
-		// Getting the opcode
-		bitset<7> opcode; // Getting the opcode for the controller...
+		/* Getting the opcode */
+		bitset<7> opcode;
 		for (int i = 0; i < 7; i++)
 		{
 			opcode[i] = instruction[i];
 		}
-		// Getting the register locations
-		bitset<5> rs1_idx;
-		bitset<5> rs2_idx;
-		bitset<5> rd_idx;
+		/* Getting the register locations */
+		bitset<5> rs1_idx, rs2_idx, rd_idx;
 		for (int i = 0; i < 5; i++)
 		{
 			rs1_idx[i] = instruction[15 + i];
 			rs2_idx[i] = instruction[20 + i];
 			rd_idx[i] = instruction[7 + i];
 		}
+		/* Getting input signal for ALU Controller */
 		bitset<4> alu_ctrl_in;
 		alu_ctrl_in[3] = instruction[30];
 		for (int i = 0; i < 3; i++)
 		{
 			alu_ctrl_in[i] = instruction[12 + i];
 		}
+		/* Getting the immediate */
 		int immediate = imm_gen(instruction);
+		/* Getting the controller signals */
 		bitset<9> control = controller(opcode);
 
+		bitset<2> alu_op;
+		alu_op[0] = control[1];
+		alu_op[1] = control[2];
+		
+		Operation OP = alu_ctrl(alu_op, alu_ctrl_in);
+
+		/* DEBUG PRINTS FOR DECODE PHASE */
 		// Above looks good!
 		//cout << "Opcode: " << opcode << endl;
+		//cout << "Controller: " << control << endl;
+		//cout << "ALU OP: " << alu_op << endl;
+		//cout << "Operation: " << OP << endl;
+		//cout << endl;
 		// cout << rs1_idx << endl;
 		// cout << rs2_idx << endl;
 		// cout << rd_idx << endl;
-		//cout << "Produced Signals: " << alu_signals(opcode) << endl;
 		// cout << "Produced Imm: " << dec << imm_gen(instruction) << endl;
+
 
 		// EXECUTE STAGE:
 		/*
 			Using operands specified by controllers, run the ALU to complete task
 		*/
+
+		/* Decide the input values for the ALU */
+		int input_1 = register_file[rs1_idx.to_ulong()];
+		int input_2 = 0;
+		bool ALU_SRC = control[7];
+		if (ALU_SRC){ 
+			/* If ALU_SRC is 1, use the Immediate */
+			input_2 = immediate;
+		}
+		else {
+			/* Else, use the rs2 value */
+			input_2 = register_file[rs2_idx.to_ulong()];
+		}
+		
 
 		// STORE STAGE:
 		/*

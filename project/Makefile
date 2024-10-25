@@ -1,5 +1,5 @@
 CC=g++
-DFLAGS=-g
+DFLAGS=-g -fsantize=address
 
 default: build
 
