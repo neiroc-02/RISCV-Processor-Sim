@@ -8,6 +8,7 @@
 #include <sstream>
 #include <unordered_map> // for necessary mappings
 #include <iomanip>		 // for hex representation
+#include <utility>		 // for pair
 using namespace std;
 
 /* HELPER FUNCTION FOR SIGN EXTENSION */
@@ -68,8 +69,6 @@ int imm_gen(const bitset<32> &instruction)
 		{
 			temp[i] = instruction[20 + i];
 		}
-		// FIXME: SRAI Check, not sure if I should return 3 or the one with the imm[11:5]=0x20
-		/*
 		bitset<3> funct3; //Added check for SRAI
 		for (int i = 0; i < 3; i++){
 			funct3[i] = instruction[12 + i];
@@ -78,9 +77,7 @@ int imm_gen(const bitset<32> &instruction)
 			for (int i = 5; i < 12; i++){
 				temp[i] = 0;
 			}
-			//temp[10] = 1;
 		}
-		*/
 		return sign_extension(temp);
 	}
 	// S-type instruction: Needs Ins[31:25] and Ins[11:7]
@@ -155,47 +152,95 @@ int imm_gen(const bitset<32> &instruction)
 	}
 }
 /* DECODE STAGE: ALU Control */
-enum Operation { ADD, SUB, XOR, OR, RSR, NO_OP };
+enum Operation
+{
+	ADD,
+	SUB,
+	XOR,
+	OR,
+	RSR,
+	NO_OP
+};
 Operation alu_ctrl(const bitset<2> &alu_op, const bitset<4> &funct3_7)
 {
-	if (alu_op == bitset<2>("00")){
+	if (alu_op == bitset<2>("00"))
+	{
 		return ADD;
 	}
-	else if (alu_op == bitset<2>("01")){
+	else if (alu_op == bitset<2>("01"))
+	{
 		return SUB;
 	}
-	else if (alu_op == bitset<2>("11")){
+	else if (alu_op == bitset<2>("11"))
+	{
 		return NO_OP;
 	}
-	else if (alu_op == bitset<2>("10")){
-		cout << "Must check funct3" << endl;
+	else if (alu_op == bitset<2>("10"))
+	{
 		bitset<3> funct3;
-		for (int i = 0; i < 3; i++){
+		for (int i = 0; i < 3; i++)
+		{
 			funct3[i] = funct3_7[i];
 		}
-		cout << funct3 << endl;
-		if (funct3 == bitset<3>("000")){
+		if (funct3 == bitset<3>("000"))
+		{
 			return ADD;
 		}
-		else if (funct3 == bitset<3>("100")){
+		else if (funct3 == bitset<3>("100"))
+		{
 			return XOR;
 		}
-		else if (funct3 == bitset<3>("110")){
+		else if (funct3 == bitset<3>("110"))
+		{
 			return OR;
 		}
-		else {
+		else if (funct3 == bitset<3>("101")){
+			return RSR;
+		}
+		else
+		{
 			cout << "Bad funct 3: " << funct3 << endl;
 			return NO_OP;
 		}
 	}
-	else {
+	else
+	{
 		cout << "I should not be here!" << endl;
 		return NO_OP;
 	}
 }
 /* EXECUTE STAGE: ALU */
-int alu(Operation op, int input_1, int input_2){
-
+pair<int, bool> alu(Operation OP, int input_1, int input_2)
+{
+	if (OP == ADD)
+	{
+		return pair<int, bool>(input_1 + input_2, false);
+	}
+	else if (OP == SUB)
+	{
+		return pair<int, bool>(input_1 - input_2, (input_1 - input_2 == 0) ? true : false);
+	}
+	else if (OP == XOR)
+	{
+		return pair<int, bool>(input_1 ^ input_2, false);
+	}
+	else if (OP == OR)
+	{
+		return pair<int, bool>(input_1 | input_2, false);
+	}
+	else if (OP == RSR)
+	{
+		return pair<int, bool>(input_1 >> input_2, false);
+	}
+	else if (OP == NO_OP)
+	{
+		return pair<int, bool>(input_2, false);
+	}
+	else
+	{
+		cout << "Something bad happened..." << endl;
+		return pair<int, bool>(-1, false);
+	}
 }
 
 int main(int argc, char *argv[])
@@ -252,14 +297,14 @@ int main(int argc, char *argv[])
 	bool done = false;
 	while (!done) // processor's main loop. Each iteration is equal to one clock cycle.
 	{
-		// FETCH STAGE: CONVERT INSMEM TO HEX/BINARY BITSET
+		/* FETCH STAGE: CONVERT INSMEM TO HEX/BINARY BITSET */
 		bitset<32> instruction = fetch(instMem, myCPU.readPC());
 		if (instruction.none())
 			break;
-		cout << "Inst: " << setw(8) << setfill('0') << hex << instruction.to_ulong() << endl;
+		//cout << "Inst: " << setw(8) << setfill('0') << hex << instruction.to_ulong() << endl;
 
-		// DECODE STAGE:
 		/*
+			DECODE STAGE:
 			Break the instruction up into segments:
 			- INS[6:0] -> Controller: convert to an array of control signals based on opcode
 			- INS[19:15] -> Register Mapping: get reg val
@@ -297,53 +342,85 @@ int main(int argc, char *argv[])
 		bitset<2> alu_op;
 		alu_op[0] = control[1];
 		alu_op[1] = control[2];
-		
+
 		Operation OP = alu_ctrl(alu_op, alu_ctrl_in);
 
 		/* DEBUG PRINTS FOR DECODE PHASE */
 		// Above looks good!
-		//cout << "Opcode: " << opcode << endl;
-		//cout << "Controller: " << control << endl;
-		//cout << "ALU OP: " << alu_op << endl;
-		//cout << "Operation: " << OP << endl;
-		//cout << endl;
+		// cout << "Opcode: " << opcode << endl;
+		// cout << "Controller: " << control << endl;
+		// cout << "ALU OP: " << alu_op << endl;
+		// cout << "Operation: " << OP << endl;
+		// cout << endl;
 		// cout << rs1_idx << endl;
 		// cout << rs2_idx << endl;
 		// cout << rd_idx << endl;
 		// cout << "Produced Imm: " << dec << imm_gen(instruction) << endl;
 
-
-		// EXECUTE STAGE:
-		/*
-			Using operands specified by controllers, run the ALU to complete task
-		*/
-
+		/* EXECUTE STAGE: Using operands specified by controllers, run the ALU to complete task */
 		/* Decide the input values for the ALU */
 		int input_1 = register_file[rs1_idx.to_ulong()];
 		int input_2 = 0;
 		bool ALU_SRC = control[7];
-		if (ALU_SRC){ 
+		if (ALU_SRC)
+		{
 			/* If ALU_SRC is 1, use the Immediate */
 			input_2 = immediate;
 		}
-		else {
+		else
+		{
 			/* Else, use the rs2 value */
 			input_2 = register_file[rs2_idx.to_ulong()];
 		}
+		pair<int, bool> alu_result_pair = alu(OP, input_1, input_2);
+		int result = alu_result_pair.first;
+		bool ZERO = alu_result_pair.second;
+	
+		//cout << "Reg1 Location: " << dec << rs1_idx << " " << rs1_idx.to_ulong() << endl;
+		//cout << "Reg2 Location: " << dec << rs2_idx << " " << rs2_idx.to_ulong() << endl;
+		//cout << "Input_1: " << dec << input_1 << " " << "Input_2: " << input_2 << endl;
+		//cout << "Dest Location: " << dec << rd_idx << " " << rd_idx.to_ulong() << endl;
+		//cout << "Result : " << dec << result << endl;
 		
-
 		// STORE STAGE:
 		/*
 			Using control signals decide to store in memory or store in reg
 		*/
+		bool MEM_TO_REG = control[3];
+		bool MEM_WRITE = control[4];
+		bool MEM_READ = control[5];
+		bool REG_WRITE = control[8];
+		/* Check if we need to load or store anything in memory*/
+		/*
+		if (MEM_READ){
 
+		}
+		else if (MEM_WRITE){
+
+		}
+		*/
+		//cout << "RegWrite: " << boolalpha << REG_WRITE << endl;
+		/* Check if we need to update the register file*/
+		if (REG_WRITE){
+			register_file[rd_idx.to_ulong()] = result;
+		}
+
+		bool JUMP = control[0];
+		bool BRANCH = control[6];
 		// UPDATE PC:
 		/*
 			Increment PC correctly: two cases...
 			- PC + 4 for all ins except Branch/Jump (PC++ in this program)
 			- PC + offset for Successful Branch/Jump ins (PC + offset/4 in this program)
 		*/
+		/*
+		if (JUMP || (BRANCH && ZERO)){
 
+		}
+		else {
+			myCPU.incPC();
+		}
+		*/
 		// ...
 		myCPU.incPC();
 		if (myCPU.readPC() > maxPC)
@@ -352,6 +429,6 @@ int main(int argc, char *argv[])
 	int a0 = register_file[10]; // a0 is x10
 	int a1 = register_file[11]; // a1 is x11
 	// print the results (you should replace a0 and a1 with your own variables that point to a0 and a1)
-	cout << "(" << a0 << "," << a1 << ")" << endl;
+	cout << dec << "(" << a0 << "," << a1 << ")" << endl;
 	return 0;
 }
