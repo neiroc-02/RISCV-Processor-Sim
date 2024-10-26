@@ -16,7 +16,6 @@ class CPU {
 public:
 	int dmemory[4096]; //data memory byte addressable in little endian fashion;
 	unsigned long PC; //pc 
-
 	CPU();
 	unsigned long readPC();
 	void incPC();

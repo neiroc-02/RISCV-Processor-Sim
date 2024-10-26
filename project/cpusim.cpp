@@ -69,12 +69,15 @@ int imm_gen(const bitset<32> &instruction)
 		{
 			temp[i] = instruction[20 + i];
 		}
-		bitset<3> funct3; //Added check for SRAI
-		for (int i = 0; i < 3; i++){
+		bitset<3> funct3; // Added check for SRAI
+		for (int i = 0; i < 3; i++)
+		{
 			funct3[i] = instruction[12 + i];
 		}
-		if (funct3.to_ulong() == 5){
-			for (int i = 5; i < 12; i++){
+		if (funct3.to_ulong() == 5)
+		{
+			for (int i = 5; i < 12; i++)
+			{
 				temp[i] = 0;
 			}
 		}
@@ -101,15 +104,16 @@ int imm_gen(const bitset<32> &instruction)
 		temp[0] = 0;				// Bit 0 will always be 0
 		temp[12] = instruction[31]; // Bit 12 will always come from ins[31]
 		temp[11] = instruction[7];	// Bit 11 will always come from ins[7]
-		// Bits 5:10 are located in 25:30 of the instruction
-		for (int i = 5; i < 11; i++)
+									// Bits 5:10 are located in 25:30 of the instruction
+		// Bits 10:5 are located in 30:25 of the instruction
+		for (int i = 10; i >= 5; i--)
 		{
-			temp[i] = instruction[25 + i];
+			temp[i] = instruction[25 + (i - 5)];
 		}
-		// Bits 1:4 are located in 8:11
-		for (int i = 1; i < 5; i++)
+		// Bits 4:1 are located in 11:8 of the instruction
+		for (int i = 4; i >= 1; i--)
 		{
-			temp[i] = instruction[8 + i];
+			temp[i] = instruction[7 + i];
 		}
 		return sign_extension(temp);
 	}
@@ -123,7 +127,7 @@ int imm_gen(const bitset<32> &instruction)
 		{
 			temp[i] = instruction[20 + i];
 		}
-		temp[12] = instruction[19];
+		temp[11] = instruction[20];
 		for (int i = 12; i < 20; i++)
 		{
 			temp[i] = instruction[i];
@@ -194,7 +198,8 @@ Operation alu_ctrl(const bitset<2> &alu_op, const bitset<4> &funct3_7)
 		{
 			return OR;
 		}
-		else if (funct3 == bitset<3>("101")){
+		else if (funct3 == bitset<3>("101"))
+		{
 			return RSR;
 		}
 		else
@@ -210,16 +215,20 @@ Operation alu_ctrl(const bitset<2> &alu_op, const bitset<4> &funct3_7)
 	}
 }
 /* DECODE STAGE: DATACTRL */
-bool data_ctrl(const bitset<3> &funct3){
-	if (funct3 == bitset<3>("000")){
+bool data_ctrl(const bitset<3> &funct3)
+{
+	if (funct3 == bitset<3>("000"))
+	{
 		/* Return true if the data type is byte */
 		return true;
 	}
-	else if (funct3 == bitset<3>("010")){
+	else if (funct3 == bitset<3>("010"))
+	{
 		/* Return false if the data type is word */
 		return false;
 	}
-	else {
+	else
+	{
 		cout << "This shouldn't happen!" << endl;
 		return false;
 	}
@@ -305,9 +314,7 @@ int main(int argc, char *argv[])
 	int register_file[32] = {0};
 	CPU myCPU; // call the approriate constructor here to initialize the processor...
 
-	/*
-	Instructions to Implement: ADD, LUI, ORI, XOR, SRAI, LB, LW, SB, SW, BEQ, JAL
-	*/
+	/* Instructions to Implement: ADD, LUI, ORI, XOR, SRAI, LB, LW, SB, SW, BEQ, JAL */
 
 	bool done = false;
 	while (!done) // processor's main loop. Each iteration is equal to one clock cycle.
@@ -316,7 +323,7 @@ int main(int argc, char *argv[])
 		bitset<32> instruction = fetch(instMem, myCPU.readPC());
 		if (instruction.none())
 			break;
-		//cout << "Inst: " << setw(8) << setfill('0') << hex << instruction.to_ulong() << endl;
+		cout << "Inst: " << setw(8) << setfill('0') << hex << instruction.to_ulong() << endl;
 
 		/*
 			DECODE STAGE:
@@ -360,21 +367,10 @@ int main(int argc, char *argv[])
 		alu_op[1] = control[2];
 		Operation OP = alu_ctrl(alu_op, alu_ctrl_in);
 		bool BYTE = false; /* True = byte, False = word*/
-		if (opcode == bitset<7>("0000011") || opcode == bitset<7>("0100011")){
+		if (opcode == bitset<7>("0000011") || opcode == bitset<7>("0100011"))
+		{
 			BYTE = data_ctrl(data_ctrl_in);
 		}
-
-		/* DEBUG PRINTS FOR DECODE PHASE */
-		// Above looks good!
-		// cout << "Opcode: " << opcode << endl;
-		// cout << "Controller: " << control << endl;
-		// cout << "ALU OP: " << alu_op << endl;
-		// cout << "Operation: " << OP << endl;
-		// cout << endl;
-		// cout << rs1_idx << endl;
-		// cout << rs2_idx << endl;
-		// cout << rd_idx << endl;
-		// cout << "Produced Imm: " << dec << imm_gen(instruction) << endl;
 
 		/* EXECUTE STAGE: Using operands specified by controllers, run the ALU to complete task */
 		/* Decide the input values for the ALU */
@@ -394,13 +390,7 @@ int main(int argc, char *argv[])
 		pair<int, bool> alu_result_pair = alu(OP, input_1, input_2);
 		int result = alu_result_pair.first;
 		bool ZERO = alu_result_pair.second;
-	
-		//cout << "Reg1 Location: " << dec << rs1_idx << " " << rs1_idx.to_ulong() << endl;
-		//cout << "Reg2 Location: " << dec << rs2_idx << " " << rs2_idx.to_ulong() << endl;
-		//cout << "Input_1: " << dec << input_1 << " " << "Input_2: " << input_2 << endl;
-		//cout << "Dest Location: " << dec << rd_idx << " " << rd_idx.to_ulong() << endl;
-		//cout << "Result : " << dec << result << endl;
-		
+
 		/* STORE STAGE: Using control signals decide to store in memory or store in reg */
 		bool MEM_TO_REG = control[3];
 		bool MEM_WRITE = control[4];
@@ -408,47 +398,49 @@ int main(int argc, char *argv[])
 		bool REG_WRITE = control[8];
 		/* Check if we need to load or store anything in memory*/
 
+		// FIXME: Potentially need to make byte addressable...
 		int loaded_val = 0;
-		/* For LOAD Instruction */		
-		if (MEM_READ){
+		/* For LOAD Instruction */
+		if (MEM_READ)
+		{
 			loaded_val = myCPU.dmemory[result];
-			if (BYTE){
+			if (BYTE)
+			{
 				loaded_val = loaded_val & 0x000000FF; /* Load the LS Byte Only */
 			}
 		}
 		/* For STORE Instruction */
-		else if (MEM_WRITE){
+		else if (MEM_WRITE)
+		{
 			int stored_val = register_file[rs2_idx.to_ulong()];
-			if (BYTE){
+			if (BYTE)
+			{
 				stored_val = stored_val & 0x000000FF; /* Store only the LS Byte Only */
 			}
 			myCPU.dmemory[result] = stored_val;
 		}
 
 		/* Check if we need to update the register file*/
-		if (MEM_TO_REG) result = loaded_val;
-		if (REG_WRITE){
+		if (MEM_TO_REG)
+			result = loaded_val;
+		if (REG_WRITE)
+		{
 			register_file[rd_idx.to_ulong()] = result;
 		}
 
 		bool JUMP = control[0];
 		bool BRANCH = control[6];
-		// UPDATE PC:
-		/*
-			Increment PC correctly: two cases...
-			- PC + 4 for all ins except Branch/Jump (PC++ in this program)
-			- PC + offset for Successful Branch/Jump ins (PC + offset/4 in this program)
-		*/
-		/*
-		if (JUMP || (BRANCH && ZERO)){
-
+		/* UPDATE PC: Increment PC correctly: PC + offset / 4 */
+		if (JUMP || (BRANCH && ZERO))
+		{
+			cout << "JUMP" << endl;
+			myCPU.PC = myCPU.readPC() + (immediate / 4);
 		}
-		else {
+		else
+		{
 			myCPU.incPC();
 		}
-		*/
-		// ...
-		myCPU.incPC();
+
 		if (myCPU.readPC() > maxPC)
 			break;
 	}
