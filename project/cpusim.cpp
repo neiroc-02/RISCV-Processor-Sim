@@ -209,6 +209,21 @@ Operation alu_ctrl(const bitset<2> &alu_op, const bitset<4> &funct3_7)
 		return NO_OP;
 	}
 }
+/* DECODE STAGE: DATACTRL */
+bool data_ctrl(const bitset<3> &funct3){
+	if (funct3 == bitset<3>("000")){
+		/* Return true if the data type is byte */
+		return true;
+	}
+	else if (funct3 == bitset<3>("010")){
+		/* Return false if the data type is word */
+		return false;
+	}
+	else {
+		cout << "This shouldn't happen!" << endl;
+		return false;
+	}
+}
 /* EXECUTE STAGE: ALU */
 pair<int, bool> alu(Operation OP, int input_1, int input_2)
 {
@@ -327,23 +342,27 @@ int main(int argc, char *argv[])
 			rs2_idx[i] = instruction[20 + i];
 			rd_idx[i] = instruction[7 + i];
 		}
-		/* Getting input signal for ALU Controller */
+		/* Getting input signal for ALU Controller and Data Controller */
 		bitset<4> alu_ctrl_in;
+		bitset<3> data_ctrl_in; /* Basically, funct3*/
 		alu_ctrl_in[3] = instruction[30];
 		for (int i = 0; i < 3; i++)
 		{
+			data_ctrl_in[i] = instruction[12 + i];
 			alu_ctrl_in[i] = instruction[12 + i];
 		}
 		/* Getting the immediate */
 		int immediate = imm_gen(instruction);
 		/* Getting the controller signals */
 		bitset<9> control = controller(opcode);
-
 		bitset<2> alu_op;
 		alu_op[0] = control[1];
 		alu_op[1] = control[2];
-
 		Operation OP = alu_ctrl(alu_op, alu_ctrl_in);
+		bool BYTE = false; /* True = byte, False = word*/
+		if (opcode == bitset<7>("0000011") || opcode == bitset<7>("0100011")){
+			BYTE = data_ctrl(data_ctrl_in);
+		}
 
 		/* DEBUG PRINTS FOR DECODE PHASE */
 		// Above looks good!
@@ -382,25 +401,32 @@ int main(int argc, char *argv[])
 		//cout << "Dest Location: " << dec << rd_idx << " " << rd_idx.to_ulong() << endl;
 		//cout << "Result : " << dec << result << endl;
 		
-		// STORE STAGE:
-		/*
-			Using control signals decide to store in memory or store in reg
-		*/
+		/* STORE STAGE: Using control signals decide to store in memory or store in reg */
 		bool MEM_TO_REG = control[3];
 		bool MEM_WRITE = control[4];
 		bool MEM_READ = control[5];
 		bool REG_WRITE = control[8];
 		/* Check if we need to load or store anything in memory*/
-		/*
+
+		int loaded_val = 0;
+		/* For LOAD Instruction */		
 		if (MEM_READ){
-
+			loaded_val = myCPU.dmemory[result];
+			if (BYTE){
+				loaded_val = loaded_val & 0x000000FF; /* Load the LS Byte Only */
+			}
 		}
+		/* For STORE Instruction */
 		else if (MEM_WRITE){
-
+			int stored_val = register_file[rs2_idx.to_ulong()];
+			if (BYTE){
+				stored_val = stored_val & 0x000000FF; /* Store only the LS Byte Only */
+			}
+			myCPU.dmemory[result] = stored_val;
 		}
-		*/
-		//cout << "RegWrite: " << boolalpha << REG_WRITE << endl;
+
 		/* Check if we need to update the register file*/
+		if (MEM_TO_REG) result = loaded_val;
 		if (REG_WRITE){
 			register_file[rd_idx.to_ulong()] = result;
 		}

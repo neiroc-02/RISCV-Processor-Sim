@@ -13,11 +13,10 @@ public:
 };
 */
 class CPU {
-private:
+public:
 	int dmemory[4096]; //data memory byte addressable in little endian fashion;
 	unsigned long PC; //pc 
 
-public:
 	CPU();
 	unsigned long readPC();
 	void incPC();
