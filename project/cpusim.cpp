@@ -236,28 +236,35 @@ bool data_ctrl(const bitset<3> &funct3)
 /* EXECUTE STAGE: ALU */
 pair<int, bool> alu(Operation OP, int input_1, int input_2)
 {
+	cout << dec;
 	if (OP == ADD)
 	{
+		//cout << "ADD: " << input_1 + input_2 << endl; 
 		return pair<int, bool>(input_1 + input_2, false);
 	}
 	else if (OP == SUB)
 	{
+		//cout << "SUB: " << input_1 - input_2 << endl; 
 		return pair<int, bool>(input_1 - input_2, (input_1 - input_2 == 0) ? true : false);
 	}
 	else if (OP == XOR)
 	{
+		//cout << "XOR: " << (input_1 ^ input_2) << endl; 
 		return pair<int, bool>(input_1 ^ input_2, false);
 	}
 	else if (OP == OR)
 	{
+		//cout << "OR: " << (input_1 | input_2) << endl; 
 		return pair<int, bool>(input_1 | input_2, false);
 	}
 	else if (OP == RSR)
 	{
+		//cout << "OR: " << (input_1 >> input_2) << endl; 
 		return pair<int, bool>(input_1 >> input_2, false);
 	}
 	else if (OP == NO_OP)
 	{
+		//cout << "NOP: " << (input_2) << endl; 
 		return pair<int, bool>(input_2, false);
 	}
 	else
@@ -323,7 +330,7 @@ int main(int argc, char *argv[])
 		bitset<32> instruction = fetch(instMem, myCPU.readPC());
 		if (instruction.none())
 			break;
-		cout << "Inst: " << setw(8) << setfill('0') << hex << instruction.to_ulong() << endl;
+		//cout << "Inst: " << setw(8) << setfill('0') << hex << instruction.to_ulong() << endl;
 
 		/*
 			DECODE STAGE:
@@ -428,13 +435,15 @@ int main(int argc, char *argv[])
 			register_file[rd_idx.to_ulong()] = result;
 		}
 
+		/* UPDATE PC: Increment PC correctly: PC + offset / 4 */
 		bool JUMP = control[0];
 		bool BRANCH = control[6];
-		/* UPDATE PC: Increment PC correctly: PC + offset / 4 */
 		if (JUMP || (BRANCH && ZERO))
 		{
-			cout << "JUMP" << endl;
-			myCPU.PC = myCPU.readPC() + (immediate / 4);
+			if (JUMP){
+				register_file[rd_idx.to_ulong()] = (myCPU.readPC() * 4) + 4;	
+			}
+			myCPU.PC = myCPU.readPC() + ((immediate / 4));
 		}
 		else
 		{
@@ -443,10 +452,16 @@ int main(int argc, char *argv[])
 
 		if (myCPU.readPC() > maxPC)
 			break;
+		
 	}
+	/*
+	for (int i = 0; i < 32; i++){
+		cout << "Register " << i << " " << register_file[i] << endl;
+	}
+	*/
 	int a0 = register_file[10]; // a0 is x10
 	int a1 = register_file[11]; // a1 is x11
-	// print the results (you should replace a0 and a1 with your own variables that point to a0 and a1)
 	cout << dec << "(" << a0 << "," << a1 << ")" << endl;
+	// print the results (you should replace a0 and a1 with your own variables that point to a0 and a1)
 	return 0;
 }
